@@ -1,0 +1,92 @@
+name: Easy Finance CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test application and deployment safety
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: Install runtime dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0t64 libodbc2
+          python -m pip install -r requirements.txt
+          python -m pip check
+      - name: Test root and /ef deployments with isolated data
+        run: |
+          python tests/test_deployment.py
+          python tests/test_deployment.py --root-path /ef
+          python -m unittest discover -s tests -p 'test_release*.py' -v
+
+  deploy:
+    name: Deploy only Easy Finance
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.EF_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    concurrency:
+      group: easy-finance-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Package application only
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          printf '%s\n' "$RELEASE_SHA" > REVISION
+          tar --exclude='__pycache__' --exclude='*.pyc' -czf "$RUNNER_TEMP/easy-finance.tar.gz" app requirements.txt REVISION
+      - name: Configure dedicated restricted SSH key
+        env:
+          EF_SSH_KEY: ${{ secrets.EF_SSH_KEY }}
+          EF_KNOWN_HOSTS: ${{ secrets.EF_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$EF_SSH_KEY"
+          test -n "$EF_KNOWN_HOSTS"
+          install -d -m 700 "$RUNNER_TEMP/ef-ssh"
+          printf '%s\n' "$EF_SSH_KEY" | tr -d '\r' > "$RUNNER_TEMP/ef-ssh/key"
+          printf '%s\n' "$EF_KNOWN_HOSTS" > "$RUNNER_TEMP/ef-ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/ef-ssh/key" "$RUNNER_TEMP/ef-ssh/known_hosts"
+          ssh-keygen -y -P '' -f "$RUNNER_TEMP/ef-ssh/key" > /dev/null
+      - name: Upload and deploy through restricted receiver
+        env:
+          EF_HOST: ${{ secrets.EF_HOST }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test -n "$EF_HOST"
+          ssh -T -i "$RUNNER_TEMP/ef-ssh/key" \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/ef-ssh/known_hosts" \
+            -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+            "ef-deploy@$EF_HOST" "deploy $RELEASE_SHA" < "$RUNNER_TEMP/easy-finance.tar.gz"
+      - name: Confirm public release and main site
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          curl --fail --silent --show-error --retry 3 https://l9k.dev/ef/health > "$RUNNER_TEMP/ef-health.json"
+          python3 -c 'import json,os; from pathlib import Path; data=json.loads((Path(os.environ["RUNNER_TEMP"])/"ef-health.json").read_text()); assert data["status"] == "ok" and data["revision"] == os.environ["RELEASE_SHA"]'
+          curl --fail --silent --show-error --output /dev/null https://l9k.dev/
+      - name: Remove runner credentials
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/ef-ssh/key" "$RUNNER_TEMP/ef-ssh/known_hosts"

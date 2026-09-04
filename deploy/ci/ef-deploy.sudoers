@@ -1,0 +1,2 @@
+Defaults:ef-deploy !requiretty
+ef-deploy ALL=(root) NOPASSWD: /usr/local/sbin/ef-ci-deploy

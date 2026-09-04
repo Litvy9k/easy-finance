@@ -1,0 +1,34 @@
+<section class="records">
+  <div class="section-title"><h2>明细</h2><a href="{{ base_path }}/export.csv">导出 CSV</a></div>
+  {% if records %}
+  <div class="record-list">
+    {% for r in records %}
+      {% if loop.first or r.transaction_date != records[loop.index0 - 1].transaction_date %}
+      <div class="date-divider"><span>{{ r.transaction_date }}</span><i></i></div>
+      {% endif %}
+      <article class="record card" tabindex="0" data-record>
+        <div class="record-icon {{ r.kind }}">{{ r.category[:1] }}</div>
+        <div class="record-main"><b>{{ r.purpose or '未填写资金说明' }}</b><span>{{ r.category }} · {{ r.funding_source.name }}</span>{% if r.note %}<small class="record-note">{{ r.note }}</small>{% endif %}{% if r.ocr_text %}<details class="ocr"><summary>查看并复制 OCR 文本</summary><textarea readonly rows="4">{{ r.ocr_text }}</textarea></details>{% endif %}</div>
+        <div class="record-side"><strong class="{{ r.kind }}">{{ '-' if r.kind == 'expense' else '+' }}¥{{ '%.2f'|format(r.amount) }}</strong>{% if r.image_name %}<a href="{{ base_path }}/images/{{ r.image_name }}" target="_blank">查看图片</a>{% endif %}<div class="record-actions"><button type="button" data-open-dialog="edit-{{ r.id }}">编辑</button><form class="delete-record" action="{{ base_path }}/transactions/{{ r.id }}/delete" method="post"><button type="submit">删除</button></form></div></div>
+      </article>
+
+      <dialog id="edit-{{ r.id }}" class="edit-dialog">
+        <form action="{{ base_path }}/transactions/{{ r.id }}/edit" method="post" enctype="multipart/form-data" class="entry-form transaction-form edit-form">
+          <div class="dialog-header"><div><span class="eyebrow">EDIT RECORD</span><h2>编辑记录</h2></div><button type="button" class="dialog-close" data-close-dialog aria-label="关闭">×</button></div>
+          <div class="segmented"><label><input type="radio" name="kind" value="expense" {% if r.kind == 'expense' %}checked{% endif %}><span>支出</span></label><label><input type="radio" name="kind" value="income" {% if r.kind == 'income' %}checked{% endif %}><span>收入</span></label></div>
+          <label class="amount-label">金额<div class="amount-input"><span>¥</span><input name="amount" type="number" min="0.01" step="0.01" inputmode="decimal" value="{{ r.amount }}" required></div></label>
+          <label class="funds-description">资金说明<input name="purpose" maxlength="200" value="{{ r.purpose }}" placeholder="可选"></label>
+          <div class="form-grid">
+            <label><span data-role="category-label">{{ '支出类型' if r.kind == 'expense' else '收入类型' }}</span><select data-role="expense-category" name="category" required {% if r.kind == 'income' %}disabled hidden{% endif %}>{% for category in expense_categories %}<option value="{{ category.name }}" {% if r.kind == 'expense' and category.name == r.category %}selected{% endif %}>{{ category.name }}</option>{% endfor %}</select><select data-role="income-category" name="category" required {% if r.kind == 'expense' %}disabled hidden{% endif %}>{% for category in income_categories %}<option value="{{ category.name }}" {% if r.kind == 'income' and category.name == r.category %}selected{% endif %}>{{ category.name }}</option>{% endfor %}</select></label>
+            <label><span data-role="source-label">{{ '资金来源' if r.kind == 'expense' else '资金去向' }}</span><select name="funding_source_id" required>{% for source in sources %}<option value="{{ source.id }}" {% if source.id == r.funding_source_id %}selected{% endif %}>{{ source.name }}</option>{% endfor %}</select></label>
+            <label>日期<input name="transaction_date" type="date" value="{{ r.transaction_date }}" required></label>
+            <label>图片<div class="image-ocr-row"><input data-role="image-input" name="image" type="file" accept="image/*" capture="environment"><button data-role="ocr-button" class="secondary" type="button">图转文</button><span data-role="ocr-status" class="ocr-status" aria-live="polite"></span></div>{% if r.image_name %}<small>不选择新图片将保留原图</small>{% endif %}</label>
+          </div>
+          <label>备注<textarea data-role="note-input" name="note" rows="3" placeholder="补充一点信息…">{{ r.note }}</textarea></label><input data-role="ocr-text" name="ocr_text" type="hidden" value="{{ r.ocr_text }}">
+          <div class="dialog-actions"><button type="button" class="secondary" data-close-dialog>取消</button><button class="primary" type="submit">保存修改</button></div>
+        </form>
+      </dialog>
+    {% endfor %}
+  </div>
+  {% else %}<div class="card empty">还没有记录，先记一笔吧。</div>{% endif %}
+</section>

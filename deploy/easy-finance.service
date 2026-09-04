@@ -1,0 +1,26 @@
+[Unit]
+Description=Easy Finance FastAPI
+After=network.target
+
+[Service]
+Type=simple
+User=finance
+Group=finance
+WorkingDirectory=/opt/easy-finance
+EnvironmentFile=/etc/easy-finance.env
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/easy-finance/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 1 --root-path ${APP_ROOT_PATH} --proxy-headers --forwarded-allow-ips 127.0.0.1
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+StateDirectory=easy-finance
+StateDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

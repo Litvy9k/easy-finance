@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN" data-base-path="{{ base_path }}"><head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f6f5f0"><title>简账</title><link rel="stylesheet" href="{{ base_path }}/static/app.css"><link rel="stylesheet" href="{{ base_path }}/static/charts.css"><link rel="stylesheet" href="{{ base_path }}/static/ui-additions.css"><link rel="stylesheet" href="{{ base_path }}/static/records.css">
+</head><body>
+<header><div><span class="eyebrow">EASY FINANCE</span><h1>简账</h1></div><div class="header-actions"><a class="icon-btn" href="{{ base_path }}/settings">设置</a><form method="post" action="{{ base_path }}/logout"><button class="icon-btn" title="退出">退出</button></form></div></header>
+<main>
+  <section class="summary card">
+    <form class="month-form"><input type="month" name="month" value="{{ month }}" onchange="this.form.submit()"></form>
+    <div class="summary-grid"><div><span>本月支出</span><strong class="expense">¥{{ '%.2f'|format(expense) }}</strong></div><div><span>本月收入</span><strong>¥{{ '%.2f'|format(income) }}</strong></div><div><span>本月结余</span><strong>¥{{ '%.2f'|format(balance) }}</strong></div></div>
+  </section>
+
+  <section class="card chart-card"><div class="section-title"><h2>资金概览</h2><span>{{ records|length }} 笔记录</span></div>
+    <div class="chart-tabs" role="tablist"><button type="button" class="active" data-chart="expense-chart">支出结构</button><button type="button" data-chart="ratio-chart">收入 / 支出</button></div>
+    <div id="expense-chart" class="chart-panel active"><div class="donut" style="--segments:{{ expense_donut }}"><div><b>¥{{ '%.0f'|format(expense) }}</b><span>总支出</span></div></div><div class="legend">{% for name, value, color, percent in expense_legend %}<div><i style="background:{{ color }}"></i><span>{{ name }}</span><small>{{ percent }}%</small><b>¥{{ '%.0f'|format(value) }}</b></div>{% else %}<p class="empty">这个月还没有支出</p>{% endfor %}</div></div>
+    <div id="ratio-chart" class="chart-panel"><div class="donut" style="--segments:{{ ratio_donut }}"><div><b>¥{{ '%.0f'|format(income - expense) }}</b><span>本月结余</span></div></div><div class="legend">{% for name, value, color, percent in ratio_legend %}<div><i style="background:{{ color }}"></i><span>{{ name }}</span><small>{{ percent }}%</small><b>¥{{ '%.0f'|format(value) }}</b></div>{% endfor %}</div></div>
+  </section>
+
+  <section id="entry" class="card"><div class="section-title"><h2>记一笔</h2><span>图片可选</span></div>
+    <form action="{{ base_path }}/transactions" method="post" enctype="multipart/form-data" class="entry-form transaction-form">
+      <input type="hidden" name="submission_id" value="{{ submission_id }}">
+      <div class="segmented"><label><input type="radio" name="kind" value="expense" checked><span>支出</span></label><label><input type="radio" name="kind" value="income"><span>收入</span></label></div>
+      <label class="amount-label">金额<div class="amount-input"><span>¥</span><input name="amount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00" required></div></label>
+      <label class="funds-description">资金说明<input name="purpose" maxlength="200" placeholder="可选"></label>
+      <div class="form-grid"><label><span data-role="category-label">支出类型</span><select data-role="expense-category" name="category" required>{% for category in expense_categories %}<option value="{{ category.name }}">{{ category.name }}</option>{% endfor %}</select><select data-role="income-category" name="category" required disabled hidden>{% for category in income_categories %}<option value="{{ category.name }}">{{ category.name }}</option>{% endfor %}</select></label>
+      <label><span data-role="source-label">资金来源</span><select name="funding_source_id" required>{% for source in sources %}<option value="{{ source.id }}">{{ source.name }}</option>{% endfor %}</select></label>
+      <label>日期<input name="transaction_date" type="date" value="{{ today }}" required></label><label>图片<div class="image-ocr-row"><input data-role="image-input" name="image" type="file" accept="image/*" capture="environment"><button data-role="ocr-button" class="secondary" type="button">图转文</button><span data-role="ocr-status" class="ocr-status" aria-live="polite"></span></div></label></div>
+      <label>备注<textarea data-role="note-input" name="note" rows="3" placeholder="补充一点信息…"></textarea></label><input data-role="ocr-text" name="ocr_text" type="hidden"><button class="primary" type="submit">保存记录</button>
+    </form>
+  </section>
+
+  {% include "_records.html" %}
+</main><nav class="bottom-nav"><a href="#entry">＋ 记一笔</a><a href="{{ base_path }}/settings">设置</a><a href="{{ base_path }}/export.csv">导出</a></nav><script src="{{ base_path }}/static/app.js"></script>
+</body></html>
