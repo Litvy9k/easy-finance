@@ -5,7 +5,7 @@
 - 服务器：`107.149.92.201`，Debian 13 x86_64，Python 3.13。
 - 运行账号：`finance`，服务：`easy-finance.service`，已设置开机自启。
 - 监听：仅 `127.0.0.1:8001`；公网通过现有 Nginx HTTPS 接入。
-- 代码：`/opt/easy-finance/`。
+- 当前代码指针：`/opt/easy-finance-current`；CI 版本存放于 `/opt/easy-finance-releases/`，初始版本 `/opt/easy-finance/` 保留。
 - 数据：`/var/lib/easy-finance/easy_finance.db`，图片：`/var/lib/easy-finance/uploads/`（首次上传时创建）。
 - 密码/签名密钥：`/etc/easy-finance.env`，root 所有，权限 600。密码不写入本文或 Git。
 - 按用户选择使用空白账本，没有上传本机数据库或图片。
@@ -36,7 +36,9 @@ systemctl restart easy-finance
 
 修改应用登录密码：用编辑器修改 `/etc/easy-finance.env` 中的 `APP_PASSWORD`，然后重启服务。若还要让已有登录 Cookie 失效，请同时替换 `SECRET_KEY` 为新的长随机值。不要把私钥、应用环境文件或账本发到聊天中。
 
-更新时只更新 `/opt/easy-finance/` 代码及虚拟环境；保留 `/var/lib/easy-finance/` 和 `/etc/easy-finance.env`。数据备份方式见 `deploy/README.md`。当前没有设置自动备份任务。
+更新方式：向 `Litvy9k/easy-finance` 的 `main` 分支推送，由独立 GitHub Actions 测试后发布；配置说明见 [CI-CD.md](CI-CD.md)。专用 `ef-deploy` 账号只能通过固定脚本发布简账，不能使用该密钥登录普通 Shell。主站使用自己的仓库和工作流，不受简账发布影响。
+
+发布保留 `/var/lib/easy-finance/` 和 `/etc/easy-finance.env`。每次切换版本前会生成数据库快照至 `/var/backups/easy-finance/`，不包含图片；当前没有设置定时备份任务。完整数据备份方式见 `deploy/README.md`。
 
 ## 已验证
 
