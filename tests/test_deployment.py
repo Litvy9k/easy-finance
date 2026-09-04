@@ -108,6 +108,37 @@ class DeploymentTests(unittest.TestCase):
         self.assertEqual(result.status_code, 400)
         self.assertEqual(self.client.get(self.url("/health")).json(), {"status": "ok"})
 
+    def test_shared_navigation_and_image_picker(self):
+        login = self.client.get(self.url("/login")).text
+        self.assertNotIn('class="bottom-nav"', login)
+        self.assertNotIn("/static/navigation.css", login)
+        invalid_login = self.client.post(self.url("/login"), data={"password": "wrong"})
+        self.assertEqual(invalid_login.status_code, 401)
+        self.assertNotIn('class="bottom-nav"', invalid_login.text)
+        self.login()
+        for path, current in (("/", "entry"), ("/settings", "settings")):
+            page = self.client.get(self.url(path)).text
+            navs = re.findall(r'<nav class="bottom-nav".*?</nav>', page, re.S)
+            self.assertEqual(len(navs), 1)
+            nav = navs[0]
+            self.assertEqual(nav.count('<a '), 2)
+            self.assertNotIn("export.csv", nav)
+            self.assertIn(self.url("/settings"), nav)
+            self.assertEqual(nav.count('aria-current="page"'), 1 if current else 0)
+            if current != "entry":
+                self.assertIn(self.url("/#entry"), nav)
+            self.assertIn(self.url("/static/navigation.css"), page)
+            self.assertNotIn("capture=", page)
+        home = self.client.get(self.url("/")).text
+        header = re.search(r'<header>.*?</header>', home, re.S).group()
+        self.assertNotIn("/settings", header)
+        self.assertNotIn("/logout", header)
+        self.assertEqual(home.count('href="' + self.url("/export.csv") + '"'), 1)
+        settings = self.client.get(self.url("/settings")).text
+        self.assertNotIn("/logout", settings)
+        self.assertNotIn("退出登录", settings)
+        self.assertNotIn("返回首页", settings)
+
     def test_record_lifecycle_settings_images_and_export(self):
         from sqlalchemy import select
         from app.database import SessionLocal
@@ -133,6 +164,7 @@ class DeploymentTests(unittest.TestCase):
         self.assertTrue((Path(os.environ["UPLOAD_DIR"]) / image_name).exists())
         page = self.client.get(self.url("/?month=2026-09"))
         self.assert_scoped_links(page.text)
+        self.assertNotIn("capture=", page.text)  # Includes the edit dialog's file input.
         for ending in ("/edit", "/delete"):
             self.assertIn(self.url(f"/transactions/{record_id}" + ending), page.text)
         result = self.client.get(self.url("/export.csv"))

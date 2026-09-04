@@ -17,18 +17,51 @@ from PIL import Image
 from playwright.sync_api import sync_playwright, expect
 
 
-def check_ui(browser, base_url, mobile):
-    context = browser.new_context(viewport={"width": 390 if mobile else 1280, "height": 844},
+def check_navigation(page):
+    nav = page.get_by_role("navigation", name="主要导航")
+    expect(nav).to_be_visible()
+    expect(nav.get_by_role("link")).to_have_count(2)
+    assert nav.evaluate("node => getComputedStyle(node).position") == "fixed"
+    box = nav.bounding_box()
+    assert 0 <= box["x"] and box["x"] + box["width"] <= page.viewport_size["width"]
+    assert box["y"] + box["height"] <= page.viewport_size["height"]
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    return nav
+
+
+def check_ui(browser, base_url, mobile, width=None):
+    context = browser.new_context(viewport={"width": width or (390 if mobile else 1280), "height": 844},
                                   is_mobile=mobile, has_touch=mobile)
     page = context.new_page()
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.goto(base_url + "/finance/")
+    expect(page.get_by_role("navigation")).to_have_count(0)
+    page.locator('[name="password"]').fill("wrong-password")
+    page.get_by_role("button", name="登录", exact=True).click()
+    expect(page.locator(".error")).to_contain_text("密码不正确")
+    expect(page.get_by_role("navigation")).to_have_count(0)
     page.locator('[name="password"]').fill("ui-test-password")
     page.get_by_role("button", name="登录", exact=True).click()
+    nav = check_navigation(page)
+    expect(nav.locator('[aria-current="page"]')).to_have_text("＋ 记一笔")
+    expect(page.locator('header a, header button')).to_have_count(0)
+    expect(page.locator('a[href$="/export.csv"]')).to_have_count(1)
+    nav.get_by_role("link", name="设置", exact=True).click()
+    nav = check_navigation(page)
+    expect(nav.locator('[aria-current="page"]')).to_have_text("设置")
+    page.evaluate("scrollTo(0, document.documentElement.scrollHeight)")
+    check_navigation(page)
+    expect(page.get_by_role("button", name="退出登录", exact=True)).to_have_count(0)
+    expect(page.get_by_role("link", name="返回首页", exact=True)).to_have_count(0)
+    nav.get_by_role("link", name="＋ 记一笔", exact=True).click()
+    page.wait_for_url("**/finance/#entry")
+    check_navigation(page)
     form = page.locator("#entry form")
+    assert form.locator('[name="image"]').get_attribute("capture") is None
     form.locator('[name="amount"]').fill("23.45")
-    form.locator('[name="purpose"]').fill("mobile-test" if mobile else "desktop-test")
+    description = f"ui-test-{page.viewport_size['width']}"
+    form.locator('[name="purpose"]').fill(description)
     note = form.locator('[name="note"]')
     note.fill("保留原备注  ")
     buffer = io.BytesIO()
@@ -84,7 +117,6 @@ def check_ui(browser, base_url, mobile):
     with page.expect_navigation():
         submissions.pop().continue_()
     expect(page.locator(".busy-dialog")).not_to_be_visible()
-    description = "mobile-test" if mobile else "desktop-test"
     expect(page.locator(".record-main > b").filter(has_text=description)).to_have_count(1)
     # Replay exactly the same POST to simulate a lost success response.
     result = context.request.post(base_url + "/finance/transactions", data=submitted_body, headers={
@@ -99,6 +131,7 @@ def check_ui(browser, base_url, mobile):
     record.click()
     record.get_by_role("button", name="编辑", exact=True).click()
     editor = page.locator("dialog.edit-dialog[open]")
+    assert editor.locator('[name="image"]').get_attribute("capture") is None
     editor.locator('[name="image"]').set_input_files({"name": "test.png", "mimeType": "image/png", "buffer": buffer.getvalue()})
     editor.get_by_role("button", name="图转文", exact=True).click()
     expect(page.locator(".busy-dialog")).to_be_visible()
@@ -109,6 +142,14 @@ def check_ui(browser, base_url, mobile):
     expect(page.locator(".busy-dialog")).not_to_be_visible()
     assert editor.locator('[name="note"]').input_value().endswith("\n编辑识别")
     assert not errors, errors
+    editor.get_by_role("button", name="取消", exact=True).click()
+    if os.getenv("UI_SCREENSHOT_DIR"):
+        directory = Path(os.environ["UI_SCREENSHOT_DIR"])
+        directory.mkdir(parents=True, exist_ok=True)
+        page.evaluate("scrollTo(0, 0)")
+        page.screenshot(path=str(directory / f"home-{page.viewport_size['width']}.png"))
+        page.get_by_role("navigation").get_by_role("link", name="设置", exact=True).click()
+        page.screenshot(path=str(directory / f"settings-{page.viewport_size['width']}.png"))
     context.close()
     print("PASS mobile" if mobile else "PASS desktop")
 
@@ -142,6 +183,7 @@ if __name__ == "__main__":
                 try:
                     check_ui(browser, base_url, mobile=False)
                     check_ui(browser, base_url, mobile=True)
+                    check_ui(browser, base_url, mobile=True, width=820)
                 finally:
                     browser.close()
         finally:

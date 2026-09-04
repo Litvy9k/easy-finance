@@ -2,8 +2,9 @@
 <html lang="zh-CN"><head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#f6f5f0"><title>设置 · 简账</title><link rel="stylesheet" href="{{ base_path }}/static/app.css"><link rel="stylesheet" href="{{ base_path }}/static/settings.css"><link rel="stylesheet" href="{{ base_path }}/static/records.css">
+  <link rel="stylesheet" href="{{ base_path }}/static/navigation.css">
 </head><body>
-<header><div><span class="eyebrow">EASY FINANCE</span><h1>分类设置</h1></div><a class="icon-btn" href="{{ base_path }}/">返回首页</a></header>
+<header><div><span class="eyebrow">EASY FINANCE</span><h1>分类设置</h1></div></header>
 <main class="settings-main">
   <div class="settings-intro"><h2>管理记账选项</h2><p>“默认”项不可删除。删除其他选项后，关联的历史记录会自动归入默认项。</p>{% if message %}<p class="settings-message">{{ message }}</p>{% endif %}</div>
   <section class="settings-grid">
@@ -12,4 +13,5 @@
     <article class="card dictionary"><div class="section-title"><h2>资金来源 / 去向</h2><span>{{ sources|length }} 项</span></div><form class="add-row" action="{{ base_path }}/settings/sources" method="post"><input name="name" maxlength="80" placeholder="例如：现金 / 银行卡" required><button class="primary" type="submit">添加</button></form><div class="dictionary-list">{% for item in sources %}<div><span>{{ item.name }}</span>{% if item.name == '默认' %}<small class="fixed-item">不可删除</small>{% else %}<form action="{{ base_path }}/settings/sources/{{ item.id }}/delete" method="post"><button type="submit">删除</button></form>{% endif %}</div>{% endfor %}</div></article>
   </section>
 </main>
+{% set nav_page = 'settings' %}{% include "_navigation.html" %}
 </body></html>

@@ -1,0 +1,4 @@
+<nav class="bottom-nav" aria-label="主要导航">
+  <a href="{{ '#entry' if nav_page == 'entry' else base_path + '/#entry' }}"{% if nav_page == 'entry' %} aria-current="page"{% endif %}>＋ 记一笔</a>
+  <a href="{{ base_path }}/settings"{% if nav_page == 'settings' %} aria-current="page"{% endif %}>设置</a>
+</nav>

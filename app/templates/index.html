@@ -2,8 +2,9 @@
 <html lang="zh-CN" data-base-path="{{ base_path }}"><head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#f6f5f0"><title>简账</title><link rel="stylesheet" href="{{ base_path }}/static/app.css"><link rel="stylesheet" href="{{ base_path }}/static/charts.css"><link rel="stylesheet" href="{{ base_path }}/static/ui-additions.css"><link rel="stylesheet" href="{{ base_path }}/static/records.css">
+  <link rel="stylesheet" href="{{ base_path }}/static/navigation.css">
 </head><body>
-<header><div><span class="eyebrow">EASY FINANCE</span><h1>简账</h1></div><div class="header-actions"><a class="icon-btn" href="{{ base_path }}/settings">设置</a><form method="post" action="{{ base_path }}/logout"><button class="icon-btn" title="退出">退出</button></form></div></header>
+<header><div><span class="eyebrow">EASY FINANCE</span><h1>简账</h1></div></header>
 <main>
   <section class="summary card">
     <form class="month-form"><input type="month" name="month" value="{{ month }}" onchange="this.form.submit()"></form>
@@ -24,11 +25,11 @@
       <label class="funds-description">资金说明<input name="purpose" maxlength="200" placeholder="可选"></label>
       <div class="form-grid"><label><span data-role="category-label">支出类型</span><select data-role="expense-category" name="category" required>{% for category in expense_categories %}<option value="{{ category.name }}">{{ category.name }}</option>{% endfor %}</select><select data-role="income-category" name="category" required disabled hidden>{% for category in income_categories %}<option value="{{ category.name }}">{{ category.name }}</option>{% endfor %}</select></label>
       <label><span data-role="source-label">资金来源</span><select name="funding_source_id" required>{% for source in sources %}<option value="{{ source.id }}">{{ source.name }}</option>{% endfor %}</select></label>
-      <label>日期<input name="transaction_date" type="date" value="{{ today }}" required></label><label>图片<div class="image-ocr-row"><input data-role="image-input" name="image" type="file" accept="image/*" capture="environment"><button data-role="ocr-button" class="secondary" type="button">图转文</button><span data-role="ocr-status" class="ocr-status" aria-live="polite"></span></div></label></div>
+      <label>日期<input name="transaction_date" type="date" value="{{ today }}" required></label><label>图片<div class="image-ocr-row"><input data-role="image-input" name="image" type="file" accept="image/*"><button data-role="ocr-button" class="secondary" type="button">图转文</button><span data-role="ocr-status" class="ocr-status" aria-live="polite"></span></div></label></div>
       <label>备注<textarea data-role="note-input" name="note" rows="3" placeholder="补充一点信息…"></textarea></label><input data-role="ocr-text" name="ocr_text" type="hidden"><button class="primary" type="submit">保存记录</button>
     </form>
   </section>
 
   {% include "_records.html" %}
-</main><nav class="bottom-nav"><a href="#entry">＋ 记一笔</a><a href="{{ base_path }}/settings">设置</a><a href="{{ base_path }}/export.csv">导出</a></nav><script src="{{ base_path }}/static/app.js"></script>
+</main>{% set nav_page = 'entry' %}{% include "_navigation.html" %}<script src="{{ base_path }}/static/app.js"></script>
 </body></html>
